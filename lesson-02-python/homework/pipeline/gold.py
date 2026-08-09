@@ -15,11 +15,9 @@ from __future__ import annotations
 import polars as pl
 
 from . import config
-import os
 
 
 def build_repo_activity(silver: pl.DataFrame) -> pl.DataFrame:
-    os.makedirs(os.path.dirname(config.GOLD_REPO_ACTIVITY), exist_ok=True)
 
     df = (
         silver
@@ -31,12 +29,11 @@ def build_repo_activity(silver: pl.DataFrame) -> pl.DataFrame:
         .sort("event_count", descending=True)
     )
 
-    df.write_parquet(config.GOLD_REPO_ACTIVITY)
+    df.write_parquet(config.GOLD_REPO_ACTIVITY, mkdir=True)
     return df
 
 
 def build_activity_per_minute(silver: pl.DataFrame) -> pl.DataFrame:
-    os.makedirs(os.path.dirname(config.GOLD_ACTIVITY_PER_MINUTE), exist_ok=True)
 
     df = (
         silver
@@ -46,12 +43,11 @@ def build_activity_per_minute(silver: pl.DataFrame) -> pl.DataFrame:
         .sort("minute")
     )
 
-    df.write_parquet(config.GOLD_ACTIVITY_PER_MINUTE)
+    df.write_parquet(config.GOLD_ACTIVITY_PER_MINUTE, mkdir=True)
     return df
 
 
 def build_push_commits_by_repo(silver: pl.DataFrame) -> pl.DataFrame:
-    os.makedirs(os.path.dirname(config.GOLD_PUSH_COMMITS), exist_ok=True)
 
     df = (
         silver
@@ -63,5 +59,5 @@ def build_push_commits_by_repo(silver: pl.DataFrame) -> pl.DataFrame:
         ])
     )
 
-    df.write_parquet(config.GOLD_PUSH_COMMITS)
+    df.write_parquet(config.GOLD_PUSH_COMMITS, mkdir=True)
     return df

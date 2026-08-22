@@ -88,3 +88,4 @@ with DAG(
     )
 
     check_availability >> t_download >> t_validate >> t_load >> t_notify
+    

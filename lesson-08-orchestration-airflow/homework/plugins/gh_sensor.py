@@ -24,10 +24,11 @@ class GHArchiveSensor(BaseSensorOperator):
         self.hour = hour
 
     def poke(self, context) -> bool:
-       ds = context["ds"]
-       url = f"https://data.gharchive.org/{ds}-{self.hour:02d}.json.gz"
-       try:
+        ds = context["ds"]
+        url = f"https://data.gharchive.org/{ds}-{self.hour:02d}.json.gz"
+        try:
             response = requests.head(url, timeout=10)
             return response.status_code == 200
-       except requests.RequestException:
+        except requests.RequestException:
             return False
+

@@ -1,17 +1,35 @@
-# Завдання 3 і 4 — стек із двох сервісів. Специфікація: ../SPEC.md → «docker-compose».
-#
-# Потрібні два сервіси:
-#
-#   postgres  — образ postgres:16-alpine; credentials зі змінних оточення
-#               (POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB); named volume під
-#               дані БД; HEALTHCHECK через pg_isready.
-#
-#   ingestor  — будується з вашого Dockerfile (build: .); підключається до Postgres
-#               ПО ІМЕНІ СЕРВІСУ (PGHOST: postgres) — це Docker-networking; стартує
-#               лише ПІСЛЯ того, як postgres став healthy (depends_on + condition:
-#               service_healthy); named volume під кеш завантаження (/cache).
-#
-# Змінні беруться з .env (скопіюйте .env.example → .env).
-# Перевірте: docker compose up --build  (ingestor завершиться, дані будуть у Postgres).
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-# TODO: опишіть services та volumes тут.
+  ingestor:
+    build: .
+    image: gh-ingest:latest
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      ARCHIVE_URL: ${ARCHIVE_URL}
+    volumes:
+      - cache:/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  cache:
+  

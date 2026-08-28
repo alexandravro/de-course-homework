@@ -32,7 +32,7 @@ RUN mkdir /cache && chown appuser /cache
 COPY app/gh_ingest.py .
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD python -c "import psycopg; print('ok')" || exit 1
+    CMD python -c "import os,psycopg; psycopg.connect(host=os.environ['PGHOST'], user=os.environ['PGUSER'], password=os.environ['PGPASSWORD'], dbname=os.environ['PGDATABASE']).close()" || exit 1
 
 USER appuser
 

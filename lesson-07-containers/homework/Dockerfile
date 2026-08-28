@@ -37,3 +37,4 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 USER appuser
 
 ENTRYPOINT ["python", "gh_ingest.py"]
+

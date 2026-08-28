@@ -1,0 +1,4 @@
+# Regenerable Spark outputs (the notebook writes these)
+data/output/
+spark-warehouse/
+*.crc

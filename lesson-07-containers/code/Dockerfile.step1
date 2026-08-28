@@ -1,0 +1,7 @@
+# КРОК 1 — наївно, але працює. Проблеми (кеш, зайве в образі, root) виправимо далі.
+FROM python:3.12-slim
+
+COPY . .
+RUN pip install -r requirements.txt
+
+CMD ["python", "main.py"]

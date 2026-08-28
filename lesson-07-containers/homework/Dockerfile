@@ -1,16 +1,16 @@
-# syntax=docker/dockerfile:1
+# Завдання 1 — Dockerfile для ingestor. Специфікація: SPEC.md → «Завдання 1».
 #
-# Завдання 1 — Dockerfile для ingestor. Специфікація: ../SPEC.md → «Dockerfile».
+# Один образ, одна стадія. Що має бути (деталі й бали — у SPEC.md):
 #
-# Що має бути (див. SPEC.md для деталей і балів):
-#   * multi-stage build: окремий builder-стейдж ставить залежності, runtime-стейдж
-#     копіює тільки готовий venv + код (без pip/uv-кешу у фінальному образі);
-#   * залежності з app/requirements.txt (psycopg);
-#   * НЕ запускати від root — створіть і використайте non-root користувача;
-#   * точка монтування кешу (/cache) має належати цьому користувачу;
-#   * ENTRYPOINT запускає app/gh_ingest.py.
+#   * базовий образ python:3.12-slim з фіксованим тегом (не latest);
+#   * PYTHONUNBUFFERED=1 — інакше логів завантаження не видно;
+#   * non-root користувач (напр. appuser, uid 1000), USER — перед ENTRYPOINT;
+#   * каталог /cache має належати цьому користувачу — туди монтується volume;
+#   * залежності з app/requirements.txt ставляться ОКРЕМИМ шаром ПЕРЕД копіюванням
+#     коду, з --no-cache-dir (правка коду не має перебудовувати pip install);
+#   * ENTRYPOINT в exec-form запускає app/gh_ingest.py.
 #
-# Перевірте збірку: docker build -t gh-ingest:latest .
+# Перевірте збірку:  docker build -t gh-ingest:latest .
 # Скрипт app/gh_ingest.py — ДАНО, не редагуйте його.
 
-# TODO: реалізуйте multi-stage Dockerfile тут.
+# TODO: реалізуйте Dockerfile тут.

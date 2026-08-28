@@ -1,0 +1,9 @@
+# не тягнемо у build context зайве
+__pycache__/
+*.pyc
+.env
+.env.*
+README.md
+Dockerfile*
+docker-compose.yml
+.dockerignore

@@ -5,9 +5,9 @@
 Контейнеризуємо готовий Python-скрипт і піднімаємо стек із двох сервісів у **Docker
 Compose**: `ingestor` (ваш образ) завантажує годину подій **GitHub Archive** і вантажить
 їх у сервіс `postgres`. Python-код **дано** — ви пишете лише інфраструктуру: `Dockerfile`,
-`.dockerignore` і `docker-compose.yml`. Це рівно ті навички (multi-stage build, non-root,
-healthcheck, networking між контейнерами, `depends_on`), на яких будується наступне
-заняття — Airflow у Compose.
+`.dockerignore` і `docker-compose.yml`. Це рівно ті навички (порядок шарів і кешування,
+non-root, healthcheck, networking між контейнерами, `depends_on`), на яких будується
+наступне заняття — Airflow у Compose.
 
 - **Специфікація і бали:** [`SPEC.md`](SPEC.md) — головний документ, читайте його.
 - **Стартові файли (ваш код):** ця директорія (`homework/`)
@@ -94,7 +94,7 @@ Pull request зі вмістом цієї директорії:
 
 | # | Файл / крок | Що оцінюється | Балів |
 |---|---|---|---|
-| 1 | `Dockerfile` | multi-stage, non-root, залежності, /cache, ENTRYPOINT | 30 |
+| 1 | `Dockerfile` | базовий образ, порядок шарів, non-root, /cache, ENTRYPOINT | 30 |
 | 2 | `.dockerignore` | виключення зайвого з build context | 10 |
 | 3 | `docker-compose.yml` · `postgres` | образ, env, named volume, healthcheck | 20 |
 | 4 | `docker-compose.yml` · `ingestor` | build, networking, `depends_on` healthy, volume | 25 |

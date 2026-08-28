@@ -1,0 +1,13 @@
+# КРОК 2 — WORKDIR + правильний порядок шарів.
+# Залежності копіюємо й ставимо ОКРЕМО від коду: поки requirements.txt не змінився,
+# шар із pip install береться з кешу, навіть коли ми правимо main.py.
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["python", "main.py"]

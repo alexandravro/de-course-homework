@@ -1,0 +1,10 @@
+# dbt на Spark через method: session — працює проти локальної SparkSession в одному
+# процесі, без thrift-сервера. Читає/пише той самий spark-warehouse, що й bronze_job.py.
+github_lakehouse:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: session
+      schema: default
+      host: localhost

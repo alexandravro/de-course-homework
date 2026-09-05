@@ -1,0 +1,19 @@
+name: github_lakehouse
+profile: github_lakehouse
+version: "1.0"
+config-version: 2
+
+models:
+  github_lakehouse:
+    silver:
+      +materialized: table
+      +schema: silver
+    gold:
+      +materialized: table
+      +schema: gold
+
+# DDL-схеми для from_json — payload у Bronze лежить сирим JSON-рядком (див. SPEC.md).
+vars:
+  push_schema: "struct<size:int,distinct_size:int,ref:string,commits:array<struct<sha:string,message:string,`distinct`:boolean,author:struct<name:string,email:string>>>>"
+  pr_schema: "struct<action:string,number:int,pull_request:struct<state:string,title:string,draft:boolean,merged:boolean,created_at:string,closed_at:string,merged_at:string,additions:int,deletions:int,changed_files:int,commits:int,comments:int,review_comments:int,author_association:string,user:struct<login:string>,labels:array<struct<name:string>>>>"
+  issue_schema: "struct<action:string,issue:struct<number:int,title:string,state:string,created_at:string,closed_at:string,comments:int,author_association:string,user:struct<login:string>,labels:array<struct<name:string>>>>"

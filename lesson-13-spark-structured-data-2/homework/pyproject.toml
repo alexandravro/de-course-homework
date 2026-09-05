@@ -1,0 +1,14 @@
+[project]
+name = "lesson-13-homework"
+version = "0.1.0"
+description = "L13 homework — medallion pipeline: Bronze (PySpark, given) + Silver/Gold (dbt-on-Spark)"
+requires-python = "==3.12.*"
+dependencies = [
+  "pyspark>=4.1.1",
+  "pandas>=2.2,<3",  # pandas-on-Spark (pyspark 4.1) is incompatible with pandas 3.0
+  "dbt-core>=1.10",
+  "dbt-spark[session]>=1.9",
+]
+
+[tool.uv]
+package = false

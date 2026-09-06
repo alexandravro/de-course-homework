@@ -5,11 +5,14 @@
 
 -- TODO: замініть заглушку на запит згідно зі SPEC.md
 select
-    cast(null as string)    as actor_id,
-    cast(null as string)    as actor_login,
-    cast(null as boolean)   as is_bot,
-    cast(null as timestamp) as first_seen_at,
-    cast(null as timestamp) as last_seen_at,
-    cast(null as bigint)    as event_count,
-    cast(null as bigint)    as distinct_repos
-where false
+    md5(actor_login)                                        as actor_id,
+    actor_login,
+    actor_login like '%[bot]'                               as is_bot,
+    min(created_at)                                         as first_seen_at,
+    max(created_at)                                         as last_seen_at,
+    count(*)                                                as event_count,
+    count(distinct repo_name)                               as distinct_repos
+from {{ ref('events') }}
+where actor_login is not null
+group by actor_login
+

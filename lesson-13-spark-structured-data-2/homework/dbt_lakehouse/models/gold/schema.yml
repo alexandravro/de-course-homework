@@ -6,29 +6,29 @@ models:
   - name: dim_repo
     columns:
       - name: repo_id
-        # data_tests: [not_null, unique]
+        data_tests: [not_null, unique]
 
   - name: dim_actor
     columns:
       - name: actor_id
-        # data_tests: [not_null, unique]
+        data_tests: [not_null, unique]
 
   - name: dim_date
     columns:
       - name: date_id
-        # data_tests: [not_null, unique]
+        data_tests: [not_null, unique]
 
   - name: fact_commit
     columns:
       - name: commit_sha
-        # data_tests: [not_null, unique]
+        data_tests: [not_null, unique]
 
   - name: fact_pull_request
     columns:
       - name: pr_id
-        # data_tests: [not_null, unique]
+        data_tests: [not_null, unique]
 
   - name: fact_repo_activity_daily
     columns:
       - name: activity_id
-        # data_tests: [not_null, unique]
+        data_tests: [not_null, unique]

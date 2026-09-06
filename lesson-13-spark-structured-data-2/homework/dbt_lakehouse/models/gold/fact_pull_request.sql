@@ -8,21 +8,28 @@
 
 -- TODO: замініть заглушку на запит згідно зі SPEC.md
 select
-    cast(null as string)  as pr_id,
-    cast(null as string)  as repo_id,
-    cast(null as string)  as author_id,
-    cast(null as int)     as opened_date_id,
-    cast(null as int)     as merged_date_id,
-    cast(null as string)  as state,
-    cast(null as boolean) as is_merged,
-    cast(null as boolean) as is_draft,
-    cast(null as int)     as additions,
-    cast(null as int)     as deletions,
-    cast(null as int)     as churn,
-    cast(null as int)     as changed_files,
-    cast(null as int)     as commits_count,
-    cast(null as int)     as comments,
-    cast(null as int)     as review_comments,
-    cast(null as double)  as hours_open,
-    cast(null as int)     as label_count
-where false
+    md5(concat_ws('|', repo_name, cast(pr_number as string)))  as pr_id,
+    md5(repo_name)                                              as repo_id,
+    md5(author_login)                                           as author_id,
+    cast(date_format(opened_at, 'yyyyMMdd') as int)             as opened_date_id,
+    case
+        when merged_at is not null
+        then cast(date_format(merged_at, 'yyyyMMdd') as int)
+        else null
+    end                                                         as merged_date_id,
+    state,
+    is_merged,
+    is_draft,
+    additions,
+    deletions,
+    churn,
+    changed_files,
+    commits_count,
+    comments,
+    review_comments,
+    hours_open,
+    case
+        when label_names is null then 0
+        else size(label_names)
+    end                                                         as label_count
+from {{ ref('pull_requests') }}

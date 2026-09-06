@@ -6,29 +6,33 @@ models:
   - name: events
     columns:
       - name: event_id
-        # data_tests: [not_null, unique]
+        data_tests: [not_null, unique]
       - name: event_type
-        # data_tests:
-        #   - accepted_values:
-        #       values: [PushEvent, PullRequestEvent, IssuesEvent, IssueCommentEvent, WatchEvent, ForkEvent]
+        data_tests:
+         - accepted_values:
+               values: [PushEvent, PullRequestEvent, IssuesEvent, IssueCommentEvent, WatchEvent, ForkEvent]
       - name: repo_name
-        # data_tests: [not_null]
+        data_tests: [not_null]
       - name: created_at
-        # data_tests: [not_null]
+        data_tests: [not_null]
 
   - name: commits
     columns:
       - name: commit_sha
-        # data_tests: [not_null, unique]
+        data_tests: [not_null, unique]
 
   - name: pull_requests
     columns:
+      - name: pr_number
+        data_tests: [not_null]
       - name: state
-        # data_tests:
-        #   - accepted_values: { values: [open, closed] }
+        data_tests:
+          - accepted_values: { values: [open, closed] }
 
   - name: issues
     columns:
+      - name: issue_number
+        data_tests: [not_null]
       - name: state
-        # data_tests:
-        #   - accepted_values: { values: [open, closed] }
+        data_tests:
+          - accepted_values: { values: [open, closed] }

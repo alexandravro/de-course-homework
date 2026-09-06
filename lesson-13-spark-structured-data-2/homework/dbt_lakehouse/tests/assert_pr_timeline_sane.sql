@@ -3,4 +3,5 @@
 -- TODO: замініть заглушку (зараз тест проходить вхолосту).
 select *
 from {{ ref('pull_requests') }}
-where false
+where (merged_at is not null and merged_at < opened_at)
+   or (closed_at is not null and closed_at < opened_at)

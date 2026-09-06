@@ -3,4 +3,4 @@
 -- TODO: замініть заглушку (зараз тест проходить вхолосту).
 select *
 from {{ ref('fact_pull_request') }}
-where false
+where churn != additions + deletions

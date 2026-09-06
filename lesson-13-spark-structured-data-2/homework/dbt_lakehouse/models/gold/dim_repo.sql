@@ -5,11 +5,12 @@
 
 -- TODO: замініть заглушку на запит згідно зі SPEC.md
 select
-    cast(null as string)    as repo_id,
-    cast(null as string)    as repo_name,
-    cast(null as string)    as repo_owner,
-    cast(null as timestamp) as first_seen_at,
-    cast(null as timestamp) as last_seen_at,
-    cast(null as bigint)    as event_count,
-    cast(null as boolean)   as is_forked
-where false
+    md5(repo_name)                                          as repo_id,
+    repo_name,
+    repo_owner,
+    min(created_at)                                         as first_seen_at,
+    max(created_at)                                         as last_seen_at,
+    count(*)                                                as event_count,
+    max(case when event_type = 'ForkEvent' then true else false end) as is_forked
+from {{ ref('events') }}
+group by repo_name, repo_owner

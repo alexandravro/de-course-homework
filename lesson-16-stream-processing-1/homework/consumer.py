@@ -71,3 +71,4 @@ def run_consumer() -> dict:
 
 if __name__ == "__main__":
     ic(run_consumer())
+    

@@ -41,3 +41,4 @@ def _to_millis(created_at: str) -> int:
     """ISO-8601 ('2024-01-15T14:00:01Z') -> epoch-мілісекунди (int). Готова функція."""
     dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
     return int(dt.timestamp() * 1000)
+

@@ -53,12 +53,10 @@ def _stop(signum: int, frame: FrameType | None) -> None:
 def landing_path(
     base: Path, ingested_at: datetime, partition: int, first_offset: int, last_offset: int
 ) -> Path:
-    """Шлях файлу для батчу. Детермінований: той самий діапазон офсетів -> те саме імʼя.
-
-    TODO (1): `base/dt=YYYY-MM-DD/hour=HH/part-p{partition}-o{first:012d}-o{last:012d}.ndjson`,
-    де dt і hour — UTC-час запису (`ingested_at`). Формат — у SPEC.md, розділ 2.2.
-    """
-    raise NotImplementedError("TODO (1): landing_path")
+    dt = ingested_at.strftime("%Y-%m-%d")
+    hour = ingested_at.strftime("%H")
+    filename = f"part-p{partition}-o{first_offset:012d}-o{last_offset:012d}.ndjson"
+    return base / f"dt={dt}" / f"hour={hour}" / filename
 
 
 def write_batch(
@@ -66,14 +64,40 @@ def write_batch(
     ingested_at: datetime,
     records: list[tuple[int, int, bytes]],
 ) -> list[Path]:
-    """Записує батч (partition, offset, value) у landing. Повертає створені файли.
+    from collections import defaultdict
 
-    TODO (2): один файл на партицію, записи відсортовано за офсетом, один JSON-обʼєкт на рядок
-    (рівно один `\\n` у кінці), атомарний запис (`*.ndjson.tmp` -> fsync -> `os.replace`), збій
-    не лишає ні готового файлу, ні `.tmp`. Повторний виклик із тим самим батчем нічого не
-    дублює. Вимоги — у SPEC.md, розділ 2.2.
-    """
-    raise NotImplementedError("TODO (2): write_batch")
+    by_partition: dict[int, list[tuple[int, bytes]]] = defaultdict(list)
+    for partition, offset, value in records:
+        by_partition[partition].append((offset, value))
+
+    created: list[Path] = []
+    for partition, items in by_partition.items():
+        items.sort(key=lambda x: x[0])
+        first_offset = items[0][0]
+        last_offset = items[-1][0]
+        path = landing_path(base, ingested_at, partition, first_offset, last_offset)
+
+        if path.exists():
+            created.append(path)
+            continue
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".ndjson.tmp")
+        try:
+            with tmp.open("wb") as f:
+                for _, value in items:
+                    f.write(value)
+                    if not value.endswith(b"\n"):
+                        f.write(b"\n")
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+            created.append(path)
+        except Exception:
+            tmp.unlink(missing_ok=True)
+            raise
+
+    return created
 
 
 def main() -> None:
@@ -106,11 +130,9 @@ def main() -> None:
         if not batch:
             batch_started = time.monotonic()
             return
-        # TODO (3): записати батч у landing (write_batch), і ЛИШЕ ПОТІМ закомітити офсети
-        # (`consumer.commit(asynchronous=False)`). Порядок «запис -> commit» — це те, що не дає
-        # втрачати повідомлення: падіння між ними дасть дублікати, але не втрати.
-        raise NotImplementedError("TODO (3): flush()")
-        files: list[Path] = []
+        ingested_at = datetime.utcnow()
+        files = write_batch(config.LANDING_DIR, ingested_at, batch)
+        consumer.commit(asynchronous=False)
         total += len(batch)
         print(f"  {len(batch)} подій -> {', '.join(p.name for p in files)} (всього {total})")
         batch = []

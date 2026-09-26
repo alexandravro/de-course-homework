@@ -1,4 +1,17 @@
--- gold.dim_zone — ЕТАП 2. Grain: зона. SPEC.md, розділ 4.4.
---   * table; джерело — ref('seed_taxi_zone'); порожні значення -> 'Unknown'; плюс член zone_key = -1
+{{ config(materialized='table') }}
 
-{{ exceptions.raise_compiler_error("TODO: реалізуйте модель dim_zone (див. SPEC.md)") }}
+select
+    cast(location_id as int)                                as zone_key,
+    coalesce(nullif(trim(zone_name), ''), 'Unknown')        as zone,
+    coalesce(nullif(trim(borough), ''), 'Unknown')          as borough,
+    coalesce(nullif(trim(service_zone), ''), 'Unknown')     as service_zone
+from {{ ref('seed_taxi_zone') }}
+
+union all
+
+select
+    -1                                                      as zone_key,
+    'Unknown'                                               as zone,
+    'Unknown'                                               as borough,
+    'Unknown'                                               as service_zone
+    

@@ -1,0 +1,43 @@
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    description: >
+      Сирий шар. Його пише Spark (`bronze_job.py`), а не dbt: dbt тут лише читає.
+      Контракт Bronze — `payload` лишається сирим JSON-текстом, нічого не виправлено,
+      кожен рядок має метадані ingestion `_source_file` / `_ingested_at`.
+    tables:
+      - name: raw_events
+        description: "Одна подія = один рядок. Дублікати й тестовий трафік тут ще є."
+        # `dbt source freshness` порівнює max(_ingested_at) з порогами. Стрім у нас
+        # скінченний (корпус вичерпується), тому пороги в добах, а не в хвилинах:
+        # у проді це були б хвилини — саме freshness відрізняє «нічого не приїхало»
+        # від «ingestion зламався».
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 1, period: day}
+          error_after: {count: 7, period: day}
+        columns:
+          - name: event_id
+            data_tests:
+              - not_null
+          - name: event_type
+            description: "Шість типів життєвого циклу. Новий тип = зміна контракту."
+            data_tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values:
+                      - ride_requested
+                      - ride_accepted
+                      - ride_started
+                      - ride_completed
+                      - ride_cancelled
+                      - payment_captured
+          - name: _source_file
+            data_tests:
+              - not_null
+          - name: _ingested_at
+            data_tests:
+              - not_null

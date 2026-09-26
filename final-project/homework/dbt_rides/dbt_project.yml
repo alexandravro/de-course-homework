@@ -1,0 +1,41 @@
+# dbt-проєкт: Silver і Gold поверх Bronze, який пише Spark.
+#
+#   bronze.raw_events  — source() (Spark, НЕ dbt)
+#   silver.events      — incremental, дедуплікація й типізація подій
+#   silver.rides       — incremental, життєвий цикл поїздки в один рядок
+#   gold.dim_zone      — table, довідник зон (seed)
+#   gold.dim_driver    — incremental, поточні атрибути водія
+#   gold.fact_ride     — incremental, accumulating snapshot: один рядок на поїздку
+#   gold.agg_zone_hourly — incremental, вітрина «зона × година»
+#
+# Що і коли запускати, описано в selectors.yml, а не в DAG-у: Airflow викликає
+# `dbt build --selector silver` / `--selector gold`.
+
+name: "rides"
+version: "1.0.0"
+config-version: 2
+
+profile: "rides"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  rides:
+    silver:
+      +schema: silver
+      +tags: ["silver"]
+    gold:
+      +schema: gold
+      +tags: ["gold"]
+
+seeds:
+  rides:
+    +schema: reference
+    +tags: ["reference"]

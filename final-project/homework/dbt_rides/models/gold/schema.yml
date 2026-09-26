@@ -1,0 +1,87 @@
+version: 2
+
+models:
+  - name: dim_zone
+    description: "Довідник таксі-зон Нью-Йорка + член -1 «Unknown». Grain — зона."
+    columns:
+      - name: zone_key
+        data_tests:
+          - unique
+          - not_null
+      - name: borough
+        data_tests:
+          - not_null
+
+  - name: dim_driver
+    description: >
+      Водії, атрибути SCD Type 1 (поточні значення) + член 'unknown'. Grain — водій.
+      Incremental за зачепленими ключами: водія перераховуємо з усієї його історії.
+    columns:
+      - name: driver_key
+        data_tests:
+          - unique
+          - not_null
+      - name: vehicle_type
+        data_tests:
+          - not_null
+
+  - name: fact_ride
+    description: >
+      Accumulating snapshot: один рядок на поїздку, оновлюється, коли приходить наступна віха.
+      Grain — ride_id. Incremental (delete+insert за ride_id).
+    columns:
+      - name: ride_id
+        data_tests:
+          - unique
+          - not_null
+      - name: pickup_zone_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_key
+      - name: dropoff_zone_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_key
+      - name: driver_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_driver')
+                field: driver_key
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [requested, accepted, in_progress, completed, cancelled]
+      - name: requested_hour
+        data_tests:
+          - not_null
+      - name: requested_date
+        data_tests:
+          - not_null
+
+  - name: agg_zone_hourly
+    description: >
+      Вітрина «зона посадки × година запиту». Grain — (requested_hour, pickup_zone_key).
+      Incremental: перераховуємо цілі години, яких торкнулися нові поїздки.
+    columns:
+      - name: requested_hour
+        data_tests:
+          - not_null
+      - name: pickup_zone_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_key
+      - name: rides_requested
+        data_tests:
+          - not_null

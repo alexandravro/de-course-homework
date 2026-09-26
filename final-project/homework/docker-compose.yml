@@ -1,0 +1,211 @@
+# Локальний стек проєкту. Хмари немає: все крутиться на ноутбуці.
+#
+#   postgres  — сховище (бази `taxi_dwh` + `airflow`) :5433
+#   kafka     — один брокер у KRaft-режимі               :9094
+#   producer  — синтетичне джерело подій (ДАНО), пише в топік `ride-events`
+#   consumer  — ваш sink: Kafka -> landing-зона (NDJSON)
+#   airflow-* — оркестрація (профіль `airflow`): Spark-bronze + dbt
+#
+# Стрімінг живе САМ ПО СОБІ: producer і consumer стартують разом зі стеком і
+# крутяться безперервно, незалежно від того, чи працює Airflow.
+#
+#   docker compose up -d                      # postgres + kafka + producer + consumer
+#   docker compose --profile airflow up -d    # + Airflow (важчий, потрібен із задачі 4)
+#   docker compose logs -f consumer           # що зараз падає в landing
+#   docker compose down -v                    # знести все разом із даними
+#
+# Порти навмисно зсунуті (5433, 9094), щоб не конфліктувати з Postgres і Kafka,
+# які вже можуть працювати на вашій машині (5432, 9092).
+name: rides-pipeline
+
+x-stream-common: &stream-common
+  # Образ збирає лише `producer` (див. нижче). Якби `build:` стояв і тут, producer і consumer
+  # паралельно збирали б той самий тег, і Docker падав би з «image already exists».
+  image: fp-stream:1.0
+  # Від імені користувача хоста: файли landing-зони належатимуть вам, а не root
+  # (на Linux/WSL інакше довелося б чистити data/landing через sudo).
+  # Перший запуск: echo "LOCAL_UID=$(id -u)" > .env && echo "LOCAL_GID=$(id -g)" >> .env
+  user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+  depends_on:
+    kafka-init:
+      condition: service_completed_successfully
+  environment: &stream-env
+    KAFKA_BOOTSTRAP: kafka:29092        # всередині мережі compose
+    KAFKA_TOPIC: ride-events
+    LANDING_DIR: /app/data/landing
+    PYTHONUNBUFFERED: "1"
+  volumes:
+    - ./data:/app/data
+    - ./stream:/app/stream
+    - ./common:/app/common
+  restart: unless-stopped
+
+x-airflow-common: &airflow-common
+  # Образ збирає лише `airflow-init` (див. нижче): якби `build:` стояв у всіх трьох сервісів,
+  # вони паралельно збирали б один тег і Docker падав би з «image already exists».
+  image: fp-airflow:1.0
+  profiles: ["airflow"]
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+    AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "10"
+    PYTHONPATH: /opt/airflow/project
+    # З'єднання зі сховищем — одне джерело правди для Spark, dbt і тестів.
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGUSER: taxi
+    PGPASSWORD: taxi
+    PGDATABASE: taxi_dwh
+    LANDING_DIR: /opt/airflow/project/data/landing
+    PG_JDBC_JAR: /opt/spark-jars/postgresql.jar
+    JAVA_HOME: /usr/lib/jvm/default-java
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./:/opt/airflow/project          # bronze_job.py, common/, dbt_rides/, data/
+    - airflow-logs:/opt/airflow/logs   # іменований том: без проблем із правами на Linux/WSL
+  # Від імені користувача хоста (група 0 обовʼязкова для образу Airflow): файли в logs/ ваші.
+  user: "${LOCAL_UID:-50000}:0"
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  # --- Сховище: і DWH, і метадані Airflow (різні бази на одному сервері) ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: fp-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Виконується ОДИН раз, на порожньому томі: створює базу taxi_dwh,
+      # роль taxi, схеми bronze/silver/gold і таблицю bronze.raw_events.
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/10-taxi-dwh.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # --- Kafka: один брокер у KRaft (без ZooKeeper, без Schema Registry) ---
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: fp-kafka
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # 29092 — для контейнерів, 9094 — для вашого ноутбука, 9093 — controller
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,HOST://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,HOST://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms256M"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    # Без тому топіки й офсети зникали б при кожному перезапуску брокера.
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 29092 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s
+
+  # --- Створює топік ДО старту producer/consumer -------------------------------------
+  # Без цього consumer, що стартував першим, викликав би авто-створення топіка з 1
+  # партицією (auto-create вимкнено свідомо: партиції — це рішення, а не побічний ефект).
+  kafka-init:
+    image: apache/kafka:3.7.0
+    container_name: fp-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092
+        --create --if-not-exists --topic ride-events
+        --partitions 3 --replication-factor 1
+
+  # --- Джерело подій (ДАНО). Детерміноване за SEED, темп — PRODUCE_RATE ев/с ---
+  producer:
+    <<: *stream-common
+    container_name: fp-producer
+    build:
+      context: docker      # лише Dockerfile: код монтується томами, у образ нічого не копіюється
+      dockerfile: Dockerfile.stream
+    command: ["python", "-m", "stream.producer"]
+    environment:
+      <<: *stream-env
+      SEED: "42"
+      TOTAL_RIDES: "1200"
+      SPEED: "${SPEED:-60}"      # стиск часу: ~2.8 год подій -> ~2.8 хв публікації; 0 = без пауз
+      EVENT_TIME_ANCHOR: "2024-01-15T08:00:00Z"   # фіксований -> checkpoint-и відтворювані
+
+  # --- Ваш sink: Kafka -> data/landing/dt=.../hour=.../*.ndjson ---
+  consumer:
+    <<: *stream-common
+    container_name: fp-consumer
+    command: ["python", "-m", "stream.consumer"]
+    environment:
+      <<: *stream-env
+      KAFKA_GROUP_ID: landing-sink
+      BATCH_MAX_MESSAGES: "500"
+      BATCH_MAX_SECONDS: "10"
+
+  # --- Airflow (профіль `airflow`) ---
+  airflow-init:
+    <<: *airflow-common
+    container_name: fp-airflow-init
+    build:
+      context: docker
+      dockerfile: Dockerfile.airflow
+    # Штатний entrypoint образу НЕ перевизначаємо: саме він дописує в /etc/passwd запис для
+    # довільного uid (наш LOCAL_UID). Без запису Airflow відмовляється стартувати
+    # («running as a user with no username»).
+    command:
+      - bash
+      - -c
+      - >
+        airflow db migrate &&
+        airflow users create --username airflow --password airflow
+        --firstname a --lastname a --role Admin --email a@example.com
+    restart: on-failure
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: fp-airflow-webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: fp-airflow-scheduler
+    command: scheduler
+    restart: always
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  kafka-data:
+  airflow-logs:

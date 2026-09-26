@@ -1,0 +1,17 @@
+# Профіль лежить поруч із проєктом (не в ~/.dbt), тому команди передають і
+# --project-dir, і --profiles-dir: конфіг їде разом із кодом у git.
+#
+# Значення за замовчуванням — для запуску з ноутбука проти docker compose
+# (Postgres на localhost:5433). У контейнері Airflow ті самі змінні задає compose.
+rides:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5433') | as_number }}"
+      user: "{{ env_var('PGUSER', 'taxi') }}"
+      password: "{{ env_var('PGPASSWORD', 'taxi') }}"
+      dbname: "{{ env_var('PGDATABASE', 'taxi_dwh') }}"
+      schema: public       # схеми шарів задає generate_schema_name (silver / gold)
+      threads: 4

@@ -1,0 +1,24 @@
+# selectors.yml — «що і коли оновлювати» описано в dbt-репозиторії, а не в Airflow.
+# Додали модель і повісили на неї тег — DAG чіпати не треба.
+
+selectors:
+  - name: silver
+    description: "Очищені події та поїздки (incremental, вікно — нові рядки Bronze)."
+    definition:
+      method: tag
+      value: silver
+
+  - name: gold
+    description: "Зірка й вітрина; довідник-seed підтягуємо як предка вимірів."
+    definition:
+      union:
+        - method: tag
+          value: gold
+        - method: tag
+          value: reference
+
+  - name: reconcile
+    description: "Звірка між шарами: жодного рядка не втрачено, вітрини збігаються з фактами."
+    definition:
+      method: tag
+      value: reconcile

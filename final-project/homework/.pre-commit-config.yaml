@@ -1,0 +1,38 @@
+# Хуки запускаються з КОРЕНЯ git-репозиторію. Установка (один раз, з кореня репозиторію):
+#
+#   uv run --project final-project/homework pre-commit install \
+#       --config final-project/homework/.pre-commit-config.yaml
+#
+# Ручний прогін усіх файлів:
+#
+#   uv run --project final-project/homework pre-commit run --all-files \
+#       --config final-project/homework/.pre-commit-config.yaml
+#
+# Хуки локальні (`language: system`) і йдуть через `uv run`: версії ruff і mypy беруться з
+# uv.lock проєкту, а не з окремого ізольованого середовища pre-commit — mypy тут потребує
+# встановлених залежностей (confluent-kafka, pyspark, psycopg), щоб перевіряти типи.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --project final-project/homework ruff check --fix
+        language: system
+        types: [python]
+        files: ^final-project/homework/
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --project final-project/homework ruff format
+        language: system
+        types: [python]
+        files: ^final-project/homework/
+      - id: mypy
+        name: mypy
+        # Перевіряє весь проєкт за налаштуваннями [tool.mypy] (files = [...]) — не по окремих
+        # файлах: типи одного модуля залежать від інших. Шляхи `files` рахуються від поточного
+        # каталогу, тож запускаємо з каталогу проєкту.
+        entry: bash -c 'cd final-project/homework && uv run mypy'
+        language: system
+        pass_filenames: false
+        types: [python]
+        files: ^final-project/homework/

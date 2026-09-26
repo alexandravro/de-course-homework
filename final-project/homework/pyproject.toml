@@ -1,0 +1,58 @@
+[project]
+name = "rides-pipeline"
+version = "0.1.0"
+description = "Kafka -> landing -> Spark Bronze -> dbt Silver/Gold у Postgres, оркестрація Airflow"
+requires-python = "==3.12.*"
+dependencies = [
+  "confluent-kafka>=2.6.1",   # producer / consumer
+  "pyspark==4.1.1",           # bronze_job.py у local mode
+  "dbt-core>=1.10,<1.11",     # silver / gold
+  "dbt-postgres>=1.10,<1.11",
+  "psycopg[binary]>=3.2",     # тести й допоміжні скрипти читають склад
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3.0",
+  "ruff>=0.8",
+  "mypy>=1.13",
+  "pre-commit>=4.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+  "stream: потребує Kafka з docker compose (localhost:9094)",
+  "warehouse: потребує Postgres з docker compose (localhost:5433)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["dbt_rides", "data", "logs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+# Кирилиця в рядках і коментарях — це нормально, а не «підозрілі» юнікод-символи.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+# генератор стартера містить довгі рядки-шаблони
+"scripts/make_starter.py" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+files = ["common", "stream", "scripts", "dags", "tests", "bronze_job.py"]
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+# Airflow ставиться лише в контейнер; локально його немає.
+ignore_missing_imports = true

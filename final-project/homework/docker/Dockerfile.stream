@@ -1,0 +1,13 @@
+# Образ для стрімінг-сервісів (producer і consumer). Нічого зайвого:
+# тільки клієнт Kafka — і producer, і consumer це чистий Python.
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir "confluent-kafka==2.15.1"
+
+ENV PYTHONPATH=/app
+
+# Код монтується томом (див. docker-compose.yml), тому перезбирати образ
+# після правок consumer.py не треба — достатньо `docker compose restart consumer`.
+CMD ["python", "-m", "stream.consumer"]

@@ -1,0 +1,31 @@
+# Airflow + усе, що він запускає: Spark у local mode і dbt.
+#
+# Три шари поверх стокового образу:
+#   1. JRE 17 — без Java Spark не стартує;
+#   2. pyspark + JDBC-драйвер Postgres — bronze_job.py пише у сховище через JDBC;
+#   3. dbt у ВЛАСНОМУ venv — dbt і Airflow пінять несумісні версії спільних
+#      залежностей (jinja2, click), тому один site-packages вони не ділять.
+#      Це стандартний прод-патерн; DAG викликає саме цей бінарник.
+FROM apache/airflow:2.10.5-python3.12
+
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends default-jre-headless curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# JDBC-драйвер кладемо в образ, а не тягнемо з Maven на кожному запуску:
+# прогін DAG-у не має залежати від мережі.
+RUN mkdir -p /opt/spark-jars \
+    && curl -fsSL -o /opt/spark-jars/postgresql.jar \
+       https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.4/postgresql-42.7.4.jar \
+    && chmod 0644 /opt/spark-jars/postgresql.jar
+
+USER airflow
+RUN pip install --no-cache-dir "pyspark==4.1.1"
+
+RUN python -m venv /home/airflow/dbt-venv \
+    && /home/airflow/dbt-venv/bin/pip install --no-cache-dir \
+        "dbt-core==1.10.23" \
+        "dbt-postgres==1.10.2"
+
+ENV JAVA_HOME=/usr/lib/jvm/default-java

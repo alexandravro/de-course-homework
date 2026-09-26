@@ -1,0 +1,4 @@
+data/quarantine/governance_gate_dirty.parquet
+__pycache__/
+soda/
+data/

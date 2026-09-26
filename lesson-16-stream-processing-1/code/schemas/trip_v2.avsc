@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "TaxiTrip",
+  "namespace": "com.taxi.events",
+  "fields": [
+    {"name": "pickup_ts",       "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "dropoff_ts",      "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "pu_location_id",  "type": ["null", "int"],    "default": null},
+    {"name": "do_location_id",  "type": ["null", "int"],    "default": null},
+    {"name": "fare_amount",     "type": "double"},
+    {"name": "tip_amount",      "type": ["null", "double"], "default": null},
+    {"name": "passenger_count", "type": ["null", "int"],    "default": null},
+    {"name": "payment_type",    "type": ["null", "string"], "default": null}
+  ]
+}

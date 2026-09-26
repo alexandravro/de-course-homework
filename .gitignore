@@ -50,3 +50,7 @@ lesson-02-python/code/*.py
 lesson-03-sql/code/*.py
 lesson-12-spark-structured-data-1/code/*.py
 lesson-14-data-quality/code/*.py
+# Spark walkthrough runtime artifacts (regenerable)
+lesson-15-spark-optimization/code/spark-events/
+derby.log
+metastore_db/

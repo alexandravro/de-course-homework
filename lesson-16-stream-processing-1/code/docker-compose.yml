@@ -1,0 +1,87 @@
+# Teaching stack for Lesson 16 — Kafka event broker demo.
+# Single-broker KRaft cluster (no ZooKeeper), Schema Registry, and Kafka UI.
+# This is the RICH demo stack — the homework uses a simpler one-broker JSON setup.
+# No Postgres/Kafka Connect/Debezium here — CDC stays conceptual (knowledge.md §7);
+# this stack only carries the producer/consumer/Avro part of the lesson.
+#
+# Start:  docker compose up -d
+# Stop:   docker compose down -v
+#
+# Ports exposed on the host:
+#   9092  Kafka broker (PLAINTEXT_HOST listener)
+#   8081  Schema Registry
+#   8082  Kafka UI (web)
+
+# Explicit project name: without it Compose derives the project from the parent
+# directory ("code"), which collides with lesson-08's airflow stack — `down -v`
+# in one lesson would then tear down the other.
+name: lesson16
+
+services:
+  # --- Kafka broker in KRaft mode (combined broker + controller, no ZooKeeper) ---
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka
+    container_name: l16-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # KRaft: this node is both broker and controller
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:29093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      # Listeners: internal (29092) for containers, host (9092) for laptop, controller (29093)
+      KAFKA_LISTENERS: "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://kafka:29093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://127.0.0.1:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      # Single-node replication settings (production uses 3)
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # Fixed cluster id so KRaft storage formats deterministically
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  # --- Confluent Schema Registry (Avro contract store) ---
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.0
+    hostname: schema-registry
+    container_name: l16-schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "kafka:29092"
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/subjects"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # --- Kafka UI: web view of topics, messages, consumer groups, schemas ---
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    hostname: kafka-ui
+    container_name: l16-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8082:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "local"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:29092"
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: "http://schema-registry:8081"
+      DYNAMIC_CONFIG_ENABLED: "true"

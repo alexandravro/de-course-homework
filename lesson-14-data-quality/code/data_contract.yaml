@@ -1,0 +1,41 @@
+# data_contract.yaml — версіонований контракт для NYC TLC Yellow Taxi Silver layer.
+# Живе у git поруч із кодом: зміна правила = pull request, а не тихе виправлення.
+version: "1.0"
+dataset: silver.yellow_trips
+owner: data-platform-team
+sla:
+  freshness_hours: 48
+  min_pass_rate: 0.95
+schema:
+  - name: fare_amount
+    type: float
+    nullable: false
+    ge: 0
+  - name: PULocationID
+    type: int
+    nullable: false
+    ge: 1
+    le: 265
+  - name: DOLocationID
+    type: int
+    nullable: false
+    ge: 1
+    le: 265
+  - name: tpep_pickup_datetime
+    type: datetime
+    nullable: false
+  - name: passenger_count
+    type: float
+    nullable: true
+    ge: 1
+    le: 9
+pii_columns:
+  - name: tpep_pickup_datetime
+    classification: quasi_identifier
+    mask: date_truncate_hour
+  - name: PULocationID
+    classification: quasi_identifier
+    mask: borough_level
+  - name: DOLocationID
+    classification: quasi_identifier
+    mask: borough_level

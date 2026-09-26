@@ -1,0 +1,5 @@
+data/output/
+data/checkpoints/
+__pycache__/
+.pytest_cache/
+*.crc

@@ -15,13 +15,11 @@ watermark -> запис у parquet через foreachBatch -> serving summary.
 Деталі контракту і бали — у SPEC.md.
 """
 
-# Імпорти й окремі присвоєння — це scaffolding під TODO, тому до реалізації ruff
-# бачить їх «невикористаними». Знімаємо ці попередження саме для стартового стабу.
-# ruff: noqa: F401, F841
 
 import json
 import os
 import shutil
+import polars as pl
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
@@ -75,7 +73,7 @@ def clean_events(stream_df: DataFrame) -> DataFrame:
     return (
         stream_df
         .filter(F.col("type").isin(KEEP_TYPES))
-        .filter(F.col("public") == True)
+        .filter(F.col("public"))
         .withColumn("event_time", F.to_timestamp("created_at"))
         .select(
             F.col("id"),
@@ -138,8 +136,6 @@ def write_windows(spark: SparkSession) -> None:
 
 
 def build_summary(spark: SparkSession) -> dict:
-    import polars as pl
-
     df = pl.read_parquet(f"{OUTPUT}/*.parquet")
 
     by_type = (
